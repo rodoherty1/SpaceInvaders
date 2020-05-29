@@ -1,6 +1,12 @@
 # SpaceInvaders
 
-## Todo list
+## Next task
 * Control the left right movement of the ship
-* Allow player to quit the game at any time
-*  
+
+## Todo list
+* Decide next task
+* Introduce baddie ship
+* Shoot a bullet
+* Implement collision detection
+
+

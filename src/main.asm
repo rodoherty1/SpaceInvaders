@@ -96,7 +96,6 @@ init:
   sta $D021         ; screen colour
 
 titleScreen:
-
   printString titleScreenText, 2, 0
   printString spaceToPlayText, 4, 0
   printString qToQuitText, 6, 0
@@ -112,6 +111,8 @@ titleScreen:
   jmp @loop
 
 startGame:
+  lda #$0
+  sta gameOverFlag
   jsr clearScreen
   lda #20
   sta shipXCoord ; Set the Ships X position to the middle of the screen
@@ -138,10 +139,17 @@ gameLoop:
   jsr updateEnemy
   jsr updateShip
   jsr drawBullet
-  jmp gameLoop
+  lda gameOverFlag
+  cmp #$00
+  beq gameLoop
+  jmp init
 
 readKeys:
   lda LATEST_KEY_PRESS
+
+  cmp #$3E              ; Was 'Q' pressed according to contents of LATEST_KEY_PRESS 
+  beq gameOver
+
   cmp #$0A              ; Was 'A' pressed according to contents of LATEST_KEY_PRESS 
   beq leftKey
 
@@ -151,6 +159,11 @@ readKeys:
 
 doNotMove:
   rts
+
+gameOver:
+  lda #$1
+  sta gameOverFlag
+  jmp init
 
 leftKey:
   lda shipXCoord
@@ -203,9 +216,5 @@ updateShip:
 drawBullet:
   rts
 
-gameover:
-  lda #$1
-  sta gameOverFlag
-  jmp titleScreen
 
 
