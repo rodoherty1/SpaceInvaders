@@ -31,9 +31,10 @@ hthi = $15
 
 
 ; Variables
-gameOverFlag:     .byte $0
-hiscore:          .byte 0,0
-shipXCoord:       .byte 16,0   ; Low byte is current X coord.  Hi byte is previous X coord
+gameOverFlag:       .byte $0
+hiscore:            .byte 0,0
+shipXCoord:         .byte 16
+previousShipXCoord: .byte 16
 
 titleScreenText:
   .byte "p r o j e c t   w e l l y b o o t"
@@ -113,10 +114,9 @@ titleScreen:
 startGame:
   jsr clearScreen
   lda #20
-  ldx #0     
-  sta shipXCoord,x ; Set the Ships X position to the middle of the screen
-  ldx #1     
-  sta shipXCoord,x ; Set the Ships X position to the middle of the screen
+  sta shipXCoord ; Set the Ships X position to the middle of the screen
+  lda #19
+  sta previousShipXCoord ; Set the Ships X position to the middle of the screen
   jmp gameInit
           
 quit:
@@ -141,35 +141,40 @@ gameLoop:
   jmp gameLoop
 
 readKeys:
-
   lda LATEST_KEY_PRESS
   cmp #$0A              ; Was 'A' pressed according to contents of LATEST_KEY_PRESS 
   beq leftKey
+
+  cmp #$12
+  beq rightKey
+  rts
+
+doNotMove:
   rts
 
 leftKey:
+  lda shipXCoord
+  clc                     ; Clear the carry in prep for the next instruction
+  cmp #0                  ; Is the ship at the far-left of the screen?
+  beq doNotMove 
 
-  ; Store ' ' in SHIP_CURRENT_POS
-  ; Store 'A' in SHIP_CURRENT_POS - 1
-  
-  lda #<shipXCoord 
-  clc                    ; Clear the carry in prep for the next instruction
-  cpx #0                 ; Is the ship at the far-left of the screen?
-  beq leftKeyDone        ; If not, then move left.
-  bcs moveLeft
-
-leftKeyDone:
+  jsr saveShipsPreviousPosition
+  dec shipXCoord
   rts
 
-moveLeft:
-  ldx #0
-  lda shipXCoord,x
-  tax
-  ldy #1
-  sta shipXCoord,y
-  ldx #0 
-  dec shipXCoord,x
+rightKey:
+  lda shipXCoord
+  clc                     ; Clear the carry in prep for the next instruction
+  cmp #39                 ; Is the ship at the far-right of the screen?
+  beq doNotMove 
 
+  jsr saveShipsPreviousPosition
+  inc shipXCoord
+  rts
+
+saveShipsPreviousPosition:
+  lda shipXCoord
+  sta previousShipXCoord
   rts
 
 checkCollision:
@@ -179,18 +184,27 @@ updateEnemy:
   rts
 
 updateShip:
-  ldx #0
-  lda shipXCoord,x
-  tay
+
+  ldy shipXCoord
+  cpy previousShipXCoord
+  beq doneUpdatingShip
+
   lda #SHIP_CHARACTER
-  sta SHIP_Y_SCREEN_ADDR, Y
+  sta SHIP_Y_SCREEN_ADDR, y
+
+  ldy previousShipXCoord
+
+  lda #$20            ; Ascii for Space character
+  sta SHIP_Y_SCREEN_ADDR, y
+
+ doneUpdatingShip: 
   rts
 
 drawBullet:
   rts
 
 gameover:
-  lda #$0
+  lda #$1
   sta gameOverFlag
   jmp titleScreen
 
