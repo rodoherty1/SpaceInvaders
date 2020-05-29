@@ -1,0 +1,44 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "CL64 -> VICE",
+            "type": "shell",
+            "linux": {                  
+                "command": "cl65 -o ${fileBasenameNoExtension}.prg -u __EXEHDR__ -t c64 -C /usr/share/cc65/cfg/c64-asm.cfg ${file} && x64 ${fileBasenameNoExtension}.prg"
+            },
+            "group": "build",
+            "presentation": {
+                "clear": true
+            },
+            "problemMatcher": {
+                "owner": "ca65",
+                "fileLocation": ["relative", "${workspaceFolder}"],
+                "pattern": {
+                    "regexp": "^(Error - File\\s+(.*), line (\\d+) (\\(Zone .*\\))?:\\s+(.*))$",
+                    "file": 2,
+                    "location": 3,
+                    "message": 1
+                }
+            }
+        },
+        {
+            "label": "CL64 -> C64Debugger",
+            "type": "shell",
+            "linux": {                  
+                "command": "cl65 -o ${fileBasenameNoExtension}.prg -u __EXEHDR__ -t c64 -C c64-asm.cfg ${file} && c64debugger ${fileBasenameNoExtension}.prg"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "clear": true
+            },
+            "problemMatcher": ["$ca65", "$ld65", "$ld65-config", "$ld65-unresolved"]
+        }
+
+    ]
+}

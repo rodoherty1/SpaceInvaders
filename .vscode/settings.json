@@ -1,0 +1,9 @@
+{
+    "c64.assemblerPath": "/usr/bin/ca65",
+    "c64.c64Debugger": "~/tools/C64Debugger/c64debugger",
+    "files.exclude": {
+        "acme/*": true,
+        "original/*": true
+    },
+    "files.autoSave": "onFocusChange"
+}
