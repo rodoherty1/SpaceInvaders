@@ -18,12 +18,10 @@ GETIN = $FFE4         ; Get Input from the buffer and store it in A
 PLOT = $FFF0          ; Set/Read cursor location - how it function depends on the carry flag 
 
 SHIP_Y_SCREEN_ADDR = $0798     ; Second-last row, First column of the screen 
-SHIP_X_SCREEN_POS: .byte $00   ; Initial location of the ship.
-                                     ; Second last line, in the middle of the screen
 
-SHIP_CHARACTER = $01  ; The letter 'A'?
+SHIP_CHARACTER = $01            ; The letter 'A'?
 
-LATEST_KEY_PRESS = $C5 ; AddrC5ess of the latest key press from the user
+LATEST_KEY_PRESS = $C5          ; Address of the latest key press from the user
 
 V = $D000
 JOY = $DC00
@@ -35,6 +33,7 @@ hthi = $15
 ; Variables
 gameOverFlag:     .byte $0
 hiscore:          .byte 0,0
+shipXCoord:       .byte 16,0   ; Low byte is current X coord.  Hi byte is previous X coord
 
 titleScreenText:
   .byte "p r o j e c t   w e l l y b o o t"
@@ -113,8 +112,11 @@ titleScreen:
 
 startGame:
   jsr clearScreen
-  ldx #20               
-  stx SHIP_X_SCREEN_POS ; Set the Ships X position to the middle of the screen
+  lda #20
+  ldx #0     
+  sta shipXCoord,x ; Set the Ships X position to the middle of the screen
+  ldx #1     
+  sta shipXCoord,x ; Set the Ships X position to the middle of the screen
   jmp gameInit
           
 quit:
@@ -149,7 +151,8 @@ leftKey:
 
   ; Store ' ' in SHIP_CURRENT_POS
   ; Store 'A' in SHIP_CURRENT_POS - 1
-  ldx SHIP_X_SCREEN_POS  ; 
+  
+  lda #<shipXCoord 
   clc                    ; Clear the carry in prep for the next instruction
   cpx #0                 ; Is the ship at the far-left of the screen?
   beq leftKeyDone        ; If not, then move left.
@@ -159,16 +162,14 @@ leftKeyDone:
   rts
 
 moveLeft:
+  ldx #0
+  lda shipXCoord,x
+  tax
+  ldy #1
+  sta shipXCoord,y
+  ldx #0 
+  dec shipXCoord,x
 
-  ldx SHIP_X_SCREEN_POS
-  dex
-
-  stx SHIP_X_SCREEN_POS
-  ; lda #SHIP_CHARACTER
-  ; dex
-  ; ldx #$01
-
-  ; sta SHIP_Y_SCREEN_ADDR,X
   rts
 
 checkCollision:
@@ -178,8 +179,10 @@ updateEnemy:
   rts
 
 updateShip:
+  ldx #0
+  lda shipXCoord,x
+  tay
   lda #SHIP_CHARACTER
-  ldy SHIP_X_SCREEN_POS
   sta SHIP_Y_SCREEN_ADDR, Y
   rts
 
