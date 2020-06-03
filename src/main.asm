@@ -16,18 +16,24 @@ CHROUT = $FFD2        ; Character out
 SCNKEY = $FF9F        ; Scan keyboard for keypress    
 GETIN = $FFE4         ; Get Input from the buffer and store it in A
 PLOT = $FFF0          ; Set/Read cursor location - how it function depends on the carry flag 
+SPRITE_ENABLE_REGISTER  = $D015
+SPRITE0_COLOUR_REGISTER = $D027
 
 SHIP_Y_SCREEN_ADDR = $0798     ; Second-last row, First column of the screen 
+
 
 SHIP_CHARACTER = $01            ; The letter 'A'?
 
 LATEST_KEY_PRESS = $C5          ; Address of the latest key press from the user
 
-V = $D000
+v = $D000
 JOY = $DC00
 
 htlo = $14
 hthi = $15
+
+sprite1  = $3200                ; Sprite1 pointer
+
 
 
 ; Variables
@@ -35,6 +41,15 @@ gameOverFlag:       .byte $0
 hiscore:            .byte 0,0
 shipXCoord:         .byte 16
 previousShipXCoord: .byte 16
+v30:                .byte 0
+
+sprite0x:           .byte 160,0
+sprite0y:           .byte 220
+
+weight:             .byte 5
+jumpStrength:       .byte 0
+floor:              .byte 220
+
 
 titleScreenText:
   .byte "p r o j e c t   w e l l y b o o t"
@@ -64,8 +79,7 @@ qToQuitText:
   jsr printText
 .endmacro
 
-jmp init
-
+jmp titleScreen
 
 printText:
   lda (htlo),y
@@ -81,26 +95,37 @@ printText:
 
 printDone:
   rts
+
 clearScreen:
   lda #$93
   jsr CHROUT
   rts
 
-init:
+titleScreen:
   jsr clearScreen
 
   lda #$0           ; Black
   sta $D020         ; Border colour
-
-  lda #$0           ; Black
   sta $D021         ; screen colour
 
-titleScreen:
+setupSprites:
+  lda #01                     ; Turn on Sprite0
+  sta SPRITE_ENABLE_REGISTER
+  sta SPRITE0_COLOUR_REGISTER
+
+  lda #200                    ; set Sprite1 point to #200 * 64bytes = #12800 or $3200 which is defined above
+  sta $07F8                   ; Store sprite pointer in Sprite base register
+
+  jsr initSprite1Shape
+
+printMenu:
+  lda #0
+  sta LATEST_KEY_PRESS
   printString titleScreenText, 2, 0
   printString spaceToPlayText, 4, 0
   printString qToQuitText, 6, 0
 
-@loop:
+@printingLoop:
   lda #0
   jsr SCNKEY
   jsr GETIN
@@ -108,16 +133,10 @@ titleScreen:
   beq startGame
   cmp #$51          ; Compare to 'Q'
   beq quit
-  jmp @loop
+  jmp @printingLoop
 
 startGame:
-  lda #$0
-  sta gameOverFlag
   jsr clearScreen
-  lda #20
-  sta shipXCoord ; Set the Ships X position to the middle of the screen
-  lda #19
-  sta previousShipXCoord ; Set the Ships X position to the middle of the screen
   jmp gameInit
           
 quit:
@@ -130,64 +149,98 @@ quit:
 gameInit: 
   lda #$0
   sta gameOverFlag      ; Clear the GameOver FLag
-  sta LATEST_KEY_PRESS  ; Clear the value of the player's latest keystroke
-  jmp gameLoop
 
 gameLoop:
+  jsr vbwait
   jsr readKeys
   jsr checkCollision
   jsr updateEnemy
   jsr updateShip
   jsr drawBullet
+
   lda gameOverFlag
-  cmp #$00
-  beq gameLoop
-  jmp init
+  cmp #$01
+  bne gameLoop
+  jmp printMenu
 
-readKeys:
-  lda LATEST_KEY_PRESS
-
-  cmp #$3E              ; Was 'Q' pressed according to contents of LATEST_KEY_PRESS 
-  beq gameOver
-
-  cmp #$0A              ; Was 'A' pressed according to contents of LATEST_KEY_PRESS 
-  beq leftKey
-
-  cmp #$12
-  beq rightKey
-  rts
 
 doNotMove:
   rts
 
-gameOver:
+raiseGameOverFlag:
   lda #$1
   sta gameOverFlag
-  jmp init
+  rts
+
+adjustSpriteHeightIfJumping:
+
+  ; if jump strength >= 0 then sprite is falling
+    ; 
+  ; else sprite is rising
+  jsr wasteTime
+
+  lda sprite0y
+  sbc jumpStrength
+  sta sprite0y
+
+  cmp floor
+  bcs spriteHasLanded   ; if sprite >= floor then spriteHasLanded
+                        ; else update jumpStrength
+  sec
+  lda jumpStrength
+  sbc weight
+  sta jumpStrength
+  rts
+
+spriteHasLanded:
+  lda #0
+  sta jumpStrength
+
+  lda floor
+  sta sprite0y
+  rts
+
+readKeys:
+  jsr adjustSpriteHeightIfJumping
 
 leftKey:
-  lda shipXCoord
-  clc                     ; Clear the carry in prep for the next instruction
-  cmp #0                  ; Is the ship at the far-left of the screen?
-  beq doNotMove 
-
-  jsr saveShipsPreviousPosition
-  dec shipXCoord
+  lda LATEST_KEY_PRESS
+  cmp #$0A              ; Was 'A' pressed according to contents of LATEST_KEY_PRESS 
+  bne rightKey
+  lda sprite0x
+  sbc #05
+  sta sprite0x
   rts
 
 rightKey:
-  lda shipXCoord
-  clc                     ; Clear the carry in prep for the next instruction
-  cmp #39                 ; Is the ship at the far-right of the screen?
-  beq doNotMove 
-
-  jsr saveShipsPreviousPosition
-  inc shipXCoord
+  lda LATEST_KEY_PRESS
+  cmp #$12
+  bne jumpKey
+  lda sprite0x
+  adc #05
+  sta sprite0x
   rts
 
-saveShipsPreviousPosition:
-  lda shipXCoord
-  sta previousShipXCoord
+jumpKey:
+  lda LATEST_KEY_PRESS
+  cmp #$3C              ; Was 'SPACE' pressed?
+  bne exitKey
+
+  clc
+  lda sprite0y
+  cmp floor
+  beq makeSpriteJump    ; If sprite >= floor then mak sprite jump
+  rts
+  
+makeSpriteJump:
+  lda #15
+  sta jumpStrength
+  rts
+
+exitKey:
+  lda LATEST_KEY_PRESS
+  cmp #$17              ; Was 'X' pressed according to contents of LATEST_KEY_PRESS 
+  beq raiseGameOverFlag
   rts
 
 checkCollision:
@@ -197,24 +250,69 @@ updateEnemy:
   rts
 
 updateShip:
-
-  ldy shipXCoord
-  cpy previousShipXCoord
-  beq doneUpdatingShip
-
-  lda #SHIP_CHARACTER
-  sta SHIP_Y_SCREEN_ADDR, y
-
-  ldy previousShipXCoord
-
-  lda #$20            ; Ascii for Space character
-  sta SHIP_Y_SCREEN_ADDR, y
-
- doneUpdatingShip: 
+  lda sprite0x
+  sta v
+  lda sprite0y
+  sta v+1
   rts
 
 drawBullet:
   rts
 
+vbwait:
+  lda $d012
+  cmp #251
+  bne vbwait
+  lda v+30    ; get col reg
+  sta v30     ; save to v30
+  rts
+
+initSprite1Shape:
+  ldx #62
+  lda #$FF
+@loop:
+  sta sprite1,x
+  dex
+  bpl @loop
+  rts
+
+wasteTime:
+  nop
+  nop
+  nop
+  nop
+  nop
+  nop
+  nop
+  nop
+  nop
+  nop
+  nop
+  nop
+  nop
+  nop
+  nop
+  nop
+  nop
+  nop
+  nop
+  nop
+  nop
+  nop
+  nop
+  nop
+  nop
+  nop
+  nop
+  nop
+  nop
+  nop
+  nop
+  nop
+  nop
+  nop
+  nop
+
+  rts
 
 
