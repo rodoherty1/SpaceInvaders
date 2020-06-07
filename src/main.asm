@@ -21,7 +21,6 @@ SPRITE0_COLOUR_REGISTER = $D027
 
 SHIP_Y_SCREEN_ADDR = $0798     ; Second-last row, First column of the screen 
 
-
 SHIP_CHARACTER = $01            ; The letter 'A'?
 
 LATEST_KEY_PRESS = $C5          ; Address of the latest key press from the user
@@ -79,8 +78,14 @@ qToQuitText:
   jsr printText
 .endmacro
 
-jmp titleScreen
+jmp init
 
+init:
+  lda #$0           ; Black
+  sta $D020         ; Border colour
+  sta $D021         ; screen colour
+  jmp titleScreen
+  
 printText:
   lda (htlo),y
   cmp #0
@@ -103,10 +108,6 @@ clearScreen:
 
 titleScreen:
   jsr clearScreen
-
-  lda #$0           ; Black
-  sta $D020         ; Border colour
-  sta $D021         ; screen colour
 
 setupSprites:
   lda #01                     ; Turn on Sprite0
@@ -177,7 +178,7 @@ adjustSpriteHeightIfJumping:
   ; if jump strength >= 0 then sprite is falling
     ; 
   ; else sprite is rising
-  jsr wasteTime
+  ; jsr wasteTime
 
   lda sprite0y
   sbc jumpStrength
@@ -270,49 +271,14 @@ vbwait:
 initSprite1Shape:
   ldx #62
   lda #$FF
-@loop:
+@initSpriteLoop:
   sta sprite1,x
+  nop
+  nop
+  nop
+  nop
   dex
-  bpl @loop
+  bpl @initSpriteLoop
   rts
-
-wasteTime:
-  nop
-  nop
-  nop
-  nop
-  nop
-  nop
-  nop
-  nop
-  nop
-  nop
-  nop
-  nop
-  nop
-  nop
-  nop
-  nop
-  nop
-  nop
-  nop
-  nop
-  nop
-  nop
-  nop
-  nop
-  nop
-  nop
-  nop
-  nop
-  nop
-  nop
-  nop
-  nop
-  nop
-  nop
-  nop
-
-  rts
-
+  
 
