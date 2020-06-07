@@ -46,7 +46,7 @@ v30:                .byte 0
 sprite0x:           .byte 160,0
 sprite0y:           .byte 220
 
-weight:             .byte 5
+weight:             .byte 1
 jumpStrength:       .byte 0
 floor:              .byte 220
 
